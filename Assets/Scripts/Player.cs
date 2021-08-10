@@ -67,5 +67,5 @@ public class Player : MonoBehaviour
 		}
 		moving = false;
 		
-	}
+	} 
 }
