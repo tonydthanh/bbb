@@ -10,9 +10,13 @@ public enum PlayerMode {
 	DRAG
 };
 
+
+
 public class TriPlayer : MonoBehaviour
 {
 	public Vector3 bottom = new Vector3(0,0.28f,0);
+	public float lengthForLongpress = 0.4f;
+	public float secondsUntilHideMenu = 4f;
 	private PlayerMode mode = PlayerMode.IDLE;
 	private float holdTime = 0;
 	private Vector2 startPointerPos;
@@ -23,6 +27,10 @@ public class TriPlayer : MonoBehaviour
 	private UnityEngine.AI.NavMeshPath tempPath;
 	private ArrayList oldPath = new ArrayList();
 	private GameObject lastExtremum;
+	
+	public GameObject actionMenu;
+	
+	public AttackType[] map = { AttackType.LIGHT,AttackType.HEAVY,AttackType.SPECIAL};
     // Start is called before the first frame update
     void Start()
     {
@@ -57,7 +65,7 @@ public class TriPlayer : MonoBehaviour
 		if(mode == PlayerMode.IDLE) {
 			Debug.Log("Down");
 			startPointerPos = Input.mousePosition;
-			holdTime = Time.time+0.6f;
+			holdTime = Time.time+lengthForLongpress;
 			mode = PlayerMode.PRESSED;
 		}
 	}
@@ -82,7 +90,7 @@ public class TriPlayer : MonoBehaviour
 			MoveIt(pointerPos); 
 			return;
 		}
-		if((pointerPos - startPointerPos).magnitude > 10f) {
+		if(mode == PlayerMode.PRESSED && (pointerPos - startPointerPos).magnitude > 10f) {
 			priorPosition = transform.position;
 			mode = PlayerMode.DRAG;
 			return;
@@ -107,13 +115,18 @@ public class TriPlayer : MonoBehaviour
 	
 	
 	public void DeployCommandMenu() {
-		Debug.Log("Deploy menu");
-		holdTime=Time.time+4f;
+		actionMenu.SetActive(true);
+		holdTime=Time.time+secondsUntilHideMenu;
 	}
 	
 	public void RetractCommandMenu() {
-		Debug.Log("Retract menu");
+		actionMenu.SetActive(false);
 		holdTime = 0;
+	}
+	
+	public void ChooseAttack(int chosen) {
+		Debug.Log("Chose attack "+map[chosen].ToString());
+		RetractCommandMenu();
 	}
 	
 	void MoveIt(Vector2 screenPos) {
@@ -171,18 +184,19 @@ public class TriPlayer : MonoBehaviour
 		int numCorners = tempPath.corners.Length;
 		Vector3 start=tempPath.corners[0];
 		
-		RaycastHit hitInfo;
 		for(int i=1;i<numCorners;i++) {
 			Vector3 diff = (tempPath.corners[i]-start);
-			RaycastHit[] whams = Physics.CapsuleCastAll(start,tempPath.corners[i],0.05f,diff.normalized,0.1f,1<<6);
-			for(int j=0;j<whams.Length;j++)
+			RaycastHit[] hitSquares = Physics.CapsuleCastAll(start,tempPath.corners[i],0.05f,diff.normalized,0.1f,1<<6);
+			for(int j=0;j<hitSquares.Length;j++)
 			{
-				whams[j].transform.GetComponent<GridSquare>().Mark();
-				Debug.Log(whams[j].transform.name);
-				oldPath.Add(whams[j].transform.GetComponent<GridSquare>());
+				hitSquares[j].transform.GetComponent<GridSquare>().Mark();
+				Debug.Log(hitSquares[j].transform.name);
+				oldPath.Add(hitSquares[j].transform.GetComponent<GridSquare>());
 			}
 			
 			start = tempPath.corners[i];
 		}
 	}
+	
+	
 }
