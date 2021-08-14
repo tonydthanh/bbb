@@ -30,12 +30,16 @@ public class TriPlayer : MonoBehaviour
 	
 	public GameObject actionMenu;
 	
+	private Vector3 cameraDiff;
+	private bool moving = false;
+	
 	public AttackType[] map = { AttackType.LIGHT,AttackType.HEAVY,AttackType.SPECIAL};
     // Start is called before the first frame update
     void Start()
     {
 		agent=GetComponent<UnityEngine.AI.NavMeshAgent>();
 		agent.updateRotation = false;
+		cameraDiff = Camera.main.transform.position - transform.position;
     }
 
     // Update is called once per frame
@@ -58,6 +62,11 @@ public class TriPlayer : MonoBehaviour
 				}
 				break;
 		}
+		if(moving) {
+			Camera.main.transform.position = transform.position + cameraDiff;
+			moving = !agent.isStopped;
+		}
+		
        
     }
     
@@ -161,7 +170,9 @@ public class TriPlayer : MonoBehaviour
 			
 			return;
 		}
-		agent.SetDestination(g.transform.position+bottom);	
+		Vector3 endPosition = g.transform.position+bottom;
+		agent.SetDestination(endPosition);
+		moving = true;	
 	}
 	
 	void BlankOutPriorPath() {
@@ -190,7 +201,7 @@ public class TriPlayer : MonoBehaviour
 			for(int j=0;j<hitSquares.Length;j++)
 			{
 				hitSquares[j].transform.GetComponent<GridSquare>().Mark();
-				Debug.Log(hitSquares[j].transform.name);
+			
 				oldPath.Add(hitSquares[j].transform.GetComponent<GridSquare>());
 			}
 			
