@@ -71,7 +71,7 @@ public class Enemy : MonoBehaviour, IPawn
 				chosenAttack = AttackType.SPECIAL;
 			}
 		}
-		//Debug.Log(chosenAttack);
+		Debug.Log("CPU:"+chosenAttack);
 	}
 	
 	public AttackType ChosenAttack() {
