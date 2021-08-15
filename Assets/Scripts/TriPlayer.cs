@@ -17,7 +17,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 {
 	
 	public static TriPlayer player;
-	public static bool ready = true;
+	public static bool ready = false;
 
 	public Vector3 bottom = new Vector3(0,0.28f,0);
 	public float lengthForLongpress = 0.4f;
@@ -58,7 +58,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 		player=this;
 		OccupySquare();
 		agent=GetComponent<UnityEngine.AI.NavMeshAgent>();
-		agent.updateRotation = false;
+		agent.updateRotation = true;
 		cameraDiff = Camera.main.transform.position - transform.position;
 		
     }
@@ -87,9 +87,12 @@ public class TriPlayer : MonoBehaviour, IPawn
 				break;
 		}
 		if(moving) {
+			
 			Camera.main.transform.position = transform.position + cameraDiff;
 			moving = agent.remainingDistance > agent.stoppingDistance/2f;// && agent.velocity != Vector3.zero;
 			if(!moving) {
+				agent.updateRotation =false;
+				SetHeading(agent.velocity);
 				Debug.Log("stopped");
 				OccupySquare();
 			}
@@ -97,6 +100,21 @@ public class TriPlayer : MonoBehaviour, IPawn
 		
        
     }
+    
+    void SetHeading(Vector3 velocity) {
+		Vector2 determinant = new Vector2(velocity.x,velocity.z);
+		if(Mathf.Abs(velocity.x) > Mathf.Abs(velocity.z)) {
+			determinant.y = 0;
+		}
+		else {
+			determinant.x = 0;
+		}	
+		int angle = 90*Mathf.RoundToInt(Mathf.Rad2Deg*Mathf.Atan2(determinant.x,determinant.y)/90f);
+		Vector3 currentRot = transform.eulerAngles;
+		currentRot.y = angle;
+		
+		transform.eulerAngles=currentRot;
+	}
     
     void OnMouseDown() {
 		if(mode == PlayerMode.IDLE) {
@@ -108,8 +126,14 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	void OnMouseUp() {
 		if(mode == PlayerMode.PRESSED) {
-			holdTime = 0;
-			mode = PlayerMode.IDLE;
+			GameObject g= GetWhatsUnderIt(Input.mousePosition);
+			if(g == gameObject) {
+				mode = PlayerMode.DEPLOYING;
+			}
+			else
+			{					
+				mode = PlayerMode.IDLE;
+			}
 		}
 		if(mode == PlayerMode.DRAG) {
 			ParkIt();
@@ -130,9 +154,10 @@ public class TriPlayer : MonoBehaviour, IPawn
 			mode = PlayerMode.DRAG;
 			return;
 		}
+		/*
 		if(holdTime < Time.time) {
 			mode = PlayerMode.DEPLOYING;
-		}
+		}*/
 	}
     
 	
@@ -201,6 +226,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 			return;
 		}
 		Vector3 endPosition = prospectiveEnd+bottom;
+		agent.updateRotation =true;
 		agent.SetDestination(endPosition);
 		moving = true;	
 	}
