@@ -786,6 +786,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   factor: 0.5
+  moveDuration: 0.2
+  fps: 60
   height: 2
   width: 4
 --- !u!212 &1343821016
