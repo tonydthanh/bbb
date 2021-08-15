@@ -7,6 +7,7 @@ public class GridSquare : MonoBehaviour
 	private bool marked = false;
 	public Material highlight;
 	private Material original;
+	public IPawn occupant;
 	//private Renderer renderer;
     // Start is called before the first frame update
     void Start()
@@ -31,5 +32,17 @@ public class GridSquare : MonoBehaviour
 	public void Unmark() {
 		GetComponent<Renderer>().material = original;
 		marked = false;
+	}
+	
+	public void Vacate() {
+		occupant = null;
+	}
+	
+	public void Occupy(IPawn incoming) {
+		occupant = incoming;
+	}
+	
+	public bool IsOccupied(IPawn inquisitor) {
+		return occupant != null && occupant != inquisitor;
 	}
 }

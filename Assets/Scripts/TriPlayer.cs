@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,7 +13,7 @@ public enum PlayerMode {
 
 
 
-public class TriPlayer : MonoBehaviour
+public class TriPlayer : MonoBehaviour, IPawn
 {
 	public Vector3 bottom = new Vector3(0,0.28f,0);
 	public float lengthForLongpress = 0.4f;
@@ -27,11 +28,14 @@ public class TriPlayer : MonoBehaviour
 	private UnityEngine.AI.NavMeshPath tempPath;
 	private ArrayList oldPath = new ArrayList();
 	private GameObject lastExtremum;
+	private Vector3 prospectiveEnd;
 	
 	public GameObject actionMenu;
 	
 	private Vector3 cameraDiff;
 	private bool moving = false;
+	
+	private DistanceSorter sortoid = new DistanceSorter();
 	
 	public AttackType[] map = { AttackType.LIGHT,AttackType.HEAVY,AttackType.SPECIAL};
     // Start is called before the first frame update
@@ -40,6 +44,7 @@ public class TriPlayer : MonoBehaviour
 		agent=GetComponent<UnityEngine.AI.NavMeshAgent>();
 		agent.updateRotation = false;
 		cameraDiff = Camera.main.transform.position - transform.position;
+		OccupyInitialSquare();
     }
 
     // Update is called once per frame
@@ -170,7 +175,7 @@ public class TriPlayer : MonoBehaviour
 			
 			return;
 		}
-		Vector3 endPosition = g.transform.position+bottom;
+		Vector3 endPosition = prospectiveEnd+bottom;
 		agent.SetDestination(endPosition);
 		moving = true;	
 	}
@@ -194,20 +199,53 @@ public class TriPlayer : MonoBehaviour
 		
 		int numCorners = tempPath.corners.Length;
 		Vector3 start=tempPath.corners[0];
-		
+		prospectiveEnd = tempPath.corners[0];
 		for(int i=1;i<numCorners;i++) {
 			Vector3 diff = (tempPath.corners[i]-start);
 			RaycastHit[] hitSquares = Physics.CapsuleCastAll(start,tempPath.corners[i],0.05f,diff.normalized,0.1f,1<<6);
+			sortoid.fromWhere = start;
+			Array.Sort(hitSquares,sortoid);
 			for(int j=0;j<hitSquares.Length;j++)
 			{
+				if(hitSquares[j].transform.GetComponent<GridSquare>().IsOccupied(this)) {
+					return;
+				}
 				hitSquares[j].transform.GetComponent<GridSquare>().Mark();
-			
+				prospectiveEnd = hitSquares[j].transform.position;
 				oldPath.Add(hitSquares[j].transform.GetComponent<GridSquare>());
 			}
-			
+			prospectiveEnd = tempPath.corners[i];
 			start = tempPath.corners[i];
 		}
 	}
 	
+	public void OccupyInitialSquare() {
+		RaycastHit hitInfo;
+		Physics.SphereCast(transform.position,0.05f,-Vector3.up,out hitInfo, 1.5f,1<<6);
+		hitInfo.transform.GetComponent<GridSquare>().Occupy(this);
+	}
 	
+	private class DistanceSorter : IComparer {
+		public Vector3 fromWhere;
+		public int Compare (object x, object y) {
+			
+			if(x == null) {
+				return -1;
+			}
+			if(y == null) {
+				return 1;
+			}
+			
+			float a = (((RaycastHit)x).transform.position - fromWhere).magnitude;
+			float b = (((RaycastHit)y).transform.position - fromWhere).magnitude;
+			
+			if(a < b) {
+				return -1;
+			}
+			if(a > b) {
+				return 1;
+			}
+			return 0;
+		}
+	}
 }
