@@ -8,21 +8,27 @@ public enum PlayerMode {
 	PRESSED,
 	DEPLOYING,
 	DEPLOYED,
-	DRAG
+	DRAG,
+	DEAD
 };
-
 
 
 public class TriPlayer : MonoBehaviour, IPawn
 {
+	
+	public static TriPlayer player;
+	public static bool ready = true;
+
 	public Vector3 bottom = new Vector3(0,0.28f,0);
 	public float lengthForLongpress = 0.4f;
 	public float secondsUntilHideMenu = 4f;
+	public int maxSquaresPerTurn = 3;
 	private PlayerMode mode = PlayerMode.IDLE;
 	private float holdTime = 0;
 	private Vector2 startPointerPos;
 	private UnityEngine.AI.NavMeshAgent agent;
 	private Vector3 priorPosition;
+	private int hitPoints=10;
 	
 	private bool assessPath = false;
 	private UnityEngine.AI.NavMeshPath tempPath;
@@ -34,22 +40,35 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	private Vector3 cameraDiff;
 	private bool moving = false;
+	private GridSquare currentSquare;
+	
 	
 	private DistanceSorter sortoid = new DistanceSorter();
 	
-	public AttackType[] map = { AttackType.LIGHT,AttackType.HEAVY,AttackType.SPECIAL};
+	public AttackType[] map = new AttackType[]{AttackType.LIGHT,AttackType.HEAVY,AttackType.SPECIAL};
+	public Dictionary <AttackType,int> baseDamage = new Dictionary<AttackType,int>{
+		{AttackType.LIGHT,2},
+		{AttackType.HEAVY,4},
+		{AttackType.SPECIAL,3},
+	};
+	private AttackType chosenAttack= AttackType.NONE;
     // Start is called before the first frame update
     void Start()
     {
+		player=this;
+		OccupySquare();
 		agent=GetComponent<UnityEngine.AI.NavMeshAgent>();
 		agent.updateRotation = false;
 		cameraDiff = Camera.main.transform.position - transform.position;
-		OccupyInitialSquare();
+		
     }
 
     // Update is called once per frame
     void Update()
     {
+		if(HitPoints() == 0) {
+			return; //no movement or combat actions for you
+		}
 		if(assessPath) {
 			ShowTemporaryPath();
 		}
@@ -69,7 +88,11 @@ public class TriPlayer : MonoBehaviour, IPawn
 		}
 		if(moving) {
 			Camera.main.transform.position = transform.position + cameraDiff;
-			moving = !agent.isStopped;
+			moving = agent.remainingDistance > agent.stoppingDistance/2f;// && agent.velocity != Vector3.zero;
+			if(!moving) {
+				Debug.Log("stopped");
+				OccupySquare();
+			}
 		}
 		
        
@@ -77,7 +100,6 @@ public class TriPlayer : MonoBehaviour, IPawn
     
     void OnMouseDown() {
 		if(mode == PlayerMode.IDLE) {
-			Debug.Log("Down");
 			startPointerPos = Input.mousePosition;
 			holdTime = Time.time+lengthForLongpress;
 			mode = PlayerMode.PRESSED;
@@ -86,7 +108,6 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	void OnMouseUp() {
 		if(mode == PlayerMode.PRESSED) {
-			Debug.Log("Released");
 			holdTime = 0;
 			mode = PlayerMode.IDLE;
 		}
@@ -139,8 +160,10 @@ public class TriPlayer : MonoBehaviour, IPawn
 	}
 	
 	public void ChooseAttack(int chosen) {
-		Debug.Log("Chose attack "+map[chosen].ToString());
+		chosenAttack = map[chosen];
+		Debug.Log("Player:"+chosenAttack);
 		RetractCommandMenu();
+		Attack.SetPlayerReady(this);
 	}
 	
 	void MoveIt(Vector2 screenPos) {
@@ -169,6 +192,8 @@ public class TriPlayer : MonoBehaviour, IPawn
 	}
 	
 	void ParkIt() {
+		TriPlayer.ready = true;
+		chosenAttack = AttackType.NONE;
 		BlankOutPriorPath();
 		GameObject g= GetWhatsUnderIt(Input.mousePosition);
 		if(g==null||g.tag!="Tile"){
@@ -200,6 +225,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 		int numCorners = tempPath.corners.Length;
 		Vector3 start=tempPath.corners[0];
 		prospectiveEnd = tempPath.corners[0];
+		GridSquare inTransit;
 		for(int i=1;i<numCorners;i++) {
 			Vector3 diff = (tempPath.corners[i]-start);
 			RaycastHit[] hitSquares = Physics.CapsuleCastAll(start,tempPath.corners[i],0.05f,diff.normalized,0.1f,1<<6);
@@ -207,22 +233,87 @@ public class TriPlayer : MonoBehaviour, IPawn
 			Array.Sort(hitSquares,sortoid);
 			for(int j=0;j<hitSquares.Length;j++)
 			{
-				if(hitSquares[j].transform.GetComponent<GridSquare>().IsOccupied(this)) {
+				inTransit = hitSquares[j].transform.GetComponent<GridSquare>();
+				if(oldPath.IndexOf(inTransit) > -1) { //we processed this one already
+					continue;
+				}
+				if(inTransit.IsOccupied(this)) {
 					return;
 				}
-				hitSquares[j].transform.GetComponent<GridSquare>().Mark();
-				prospectiveEnd = hitSquares[j].transform.position;
-				oldPath.Add(hitSquares[j].transform.GetComponent<GridSquare>());
+				inTransit.Mark();
+				prospectiveEnd = inTransit.transform.position;
+				oldPath.Add(inTransit);
+				
+				if(oldPath.Count >= maxSquaresPerTurn) {
+					return;
+				}
 			}
 			prospectiveEnd = tempPath.corners[i];
 			start = tempPath.corners[i];
 		}
 	}
 	
-	public void OccupyInitialSquare() {
+	
+	
+	public void OccupySquare() {
+		if(currentSquare!=null) {
+			currentSquare.Vacate();
+		}
+		Vector3 position;
+		if(prospectiveEnd == null)
+		{
+			position = transform.position;
+		}
+		else 
+		{
+			position = prospectiveEnd+bottom;
+		}
+			
 		RaycastHit hitInfo;
-		Physics.SphereCast(transform.position,0.05f,-Vector3.up,out hitInfo, 1.5f,1<<6);
-		hitInfo.transform.GetComponent<GridSquare>().Occupy(this);
+		Physics.SphereCast(position,0.25f,-Vector3.up,out hitInfo, 1.5f,1<<6);
+		currentSquare = hitInfo.transform.GetComponent<GridSquare>();
+		Debug.Log(currentSquare.transform.position.ToString("F2"));
+		currentSquare.Occupy(this);
+	}
+	
+	public Vector2 GetPosition() {
+		return new Vector2(currentSquare.transform.position.x,currentSquare.transform.position.z);
+	}
+	
+	public AttackType ChosenAttack() {
+		return chosenAttack;
+	}
+	
+	public int HitPoints() {
+		return Mathf.Max(hitPoints,0);
+	}
+	public void RunBlockAnim(int damage = 0) {
+		hitPoints -= damage;
+		Debug.Log("OUCH!"+damage);
+		if(hitPoints <=0) {
+			mode = PlayerMode.DEAD; //to prevent response to user activity.
+		}
+	}
+	
+	public int DealtDamage() {
+		return baseDamage[chosenAttack];
+	}
+	
+	public void RunLightAnim() {
+		Debug.Log("PLAYER:Light");
+	}
+	
+	public void RunHeavyAnim() {
+		Debug.Log("PLAYER:Heavy");
+	}
+	
+	public void RunSpecialAnim() {
+		Debug.Log("PLAYER:Special");
+	}
+	
+	public void Shutdown() {
+		//play death animation, then
+		Destroy(gameObject);
 	}
 	
 	private class DistanceSorter : IComparer {
@@ -248,4 +339,6 @@ public class TriPlayer : MonoBehaviour, IPawn
 			return 0;
 		}
 	}
+	
+	
 }
