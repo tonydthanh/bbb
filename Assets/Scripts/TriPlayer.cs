@@ -44,13 +44,18 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	
 	
-	public AttackType[] map = new AttackType[]{AttackType.LIGHT,AttackType.HEAVY,AttackType.SPECIAL};
 	public Dictionary <AttackType,int> baseDamage = new Dictionary<AttackType,int>{
 		{AttackType.LIGHT,2},
 		{AttackType.HEAVY,4},
 		{AttackType.SPECIAL,3},
 	};
+	
+	private AttackType[] map = new AttackType[]{AttackType.LIGHT,AttackType.HEAVY,AttackType.SPECIAL,AttackType.BLOCK};
 	private AttackType chosenAttack= AttackType.NONE;
+	
+	private TurnMode turnPhase = TurnMode.BEGIN;
+	
+	
     // Start is called before the first frame update
     void Start()
     {
@@ -71,6 +76,9 @@ public class TriPlayer : MonoBehaviour, IPawn
 		if(Attack.turn != GameStatus.PLAYER_TURN) {
 			return;
 		}
+		if(turnPhase == TurnMode.END) {
+			turnPhase = TurnMode.BEGIN;
+		}
 		if(assessPath) {
 			ShowTemporaryPath();
 		}
@@ -88,6 +96,13 @@ public class TriPlayer : MonoBehaviour, IPawn
 				}
 				break;
 		}
+		
+		switch(turnPhase) {
+			case TurnMode.COMBAT:
+				DeployCommandMenu();
+				break;
+		}
+		
 		if(moving) {
 			
 			Camera.main.transform.position = transform.position + cameraDiff;
@@ -97,6 +112,10 @@ public class TriPlayer : MonoBehaviour, IPawn
 				SetHeading(agent.velocity);
 				Debug.Log("stopped");
 				OccupySquare();
+				if(OpponentNearby()) {
+					turnPhase=TurnMode.COMBAT;
+				}
+				
 			}
 		}
 		
@@ -119,6 +138,9 @@ public class TriPlayer : MonoBehaviour, IPawn
 	}
     
     void OnMouseDown() {
+		if(Attack.turn != GameStatus.PLAYER_TURN) {
+			return;
+		}
 		if(mode == PlayerMode.IDLE) {
 			startPointerPos = Input.mousePosition;
 			holdTime = Time.time+lengthForLongpress;
@@ -127,10 +149,14 @@ public class TriPlayer : MonoBehaviour, IPawn
 	}
 	
 	void OnMouseUp() {
+		if(Attack.turn != GameStatus.PLAYER_TURN) {
+			return;
+		}
 		if(mode == PlayerMode.PRESSED) {
 			GameObject g= GetWhatsUnderIt(Input.mousePosition);
 			if(g == gameObject) {
-				mode = PlayerMode.DEPLOYING;
+				turnPhase = TurnMode.COMBAT;
+			//	mode = PlayerMode.DEPLOYING;
 			}
 			else
 			{					
@@ -138,6 +164,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 			}
 		}
 		if(mode == PlayerMode.DRAG) {
+			turnPhase = TurnMode.MOVE;
 			ParkIt();
 			holdTime = 0;
 			mode = PlayerMode.IDLE;
@@ -146,6 +173,9 @@ public class TriPlayer : MonoBehaviour, IPawn
 	}
 	
 	void OnMouseDrag() {
+		if(Attack.turn != GameStatus.PLAYER_TURN) {
+			return;
+		}
 		Vector2 pointerPos = Input.mousePosition;
 		if(mode == PlayerMode.DRAG) {
 			MoveIt(pointerPos); 
@@ -191,6 +221,18 @@ public class TriPlayer : MonoBehaviour, IPawn
 		Debug.Log("Player:"+chosenAttack);
 		RetractCommandMenu();
 		Attack.SetPlayerReady(this);
+		EndTurn();
+	}
+	
+	public void CancelAttack() {
+		turnPhase = TurnMode.BEGIN;
+		RetractCommandMenu();
+	}
+	
+	public void EndTurn() {
+		RetractCommandMenu();
+		turnPhase= TurnMode.END;
+		Attack.EndTurn();
 	}
 	
 	void MoveIt(Vector2 screenPos) {
@@ -301,7 +343,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 		RaycastHit hitInfo;
 		Physics.SphereCast(position,0.25f,-Vector3.up,out hitInfo, 1.5f,1<<6);
 		currentSquare = hitInfo.transform.GetComponent<GridSquare>();
-		Debug.Log(currentSquare.transform.position.ToString("F2"));
+		//Debug.Log(currentSquare.transform.position.ToString("F2"));
 		currentSquare.Occupy(this);
 	}
 	
@@ -318,7 +360,8 @@ public class TriPlayer : MonoBehaviour, IPawn
 	}
 	public void RunBlockAnim(int damage = 0) {
 		hitPoints -= damage;
-		Debug.Log("OUCH!"+damage);
+		if(damage == 0)
+			Debug.Log("OUCH!"+damage);
 		if(hitPoints <=0) {
 			mode = PlayerMode.DEAD; //to prevent response to user activity.
 		}
@@ -341,11 +384,23 @@ public class TriPlayer : MonoBehaviour, IPawn
 	}
 	
 	public void Shutdown() {
+		currentSquare.Vacate();
 		//play death animation, then
 		Destroy(gameObject);
 	}
 	
 	
-	
+	public bool OpponentNearby() {
+		RaycastHit[] tiles;
+		
+		tiles=Physics.SphereCastAll(currentSquare.transform.position,1f,-Vector3.up, 1.5f,1<<6);
+		Debug.Log(tiles.Length);
+		for(int i=tiles.Length-1;i>-1;i--) {
+			if(tiles[i].transform.GetComponent<GridSquare>().IsOccupied(this)) {
+				return true;
+			}
+		}
+		return false;
+	}
 	
 }

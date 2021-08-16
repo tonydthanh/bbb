@@ -49,6 +49,9 @@ public class Enemy : MonoBehaviour, IPawn
 		if(Attack.turn != GameStatus.OPPONENT_TURN){
 			return;
 		}
+		if(turnPhase == TurnMode.END) {
+			turnPhase = TurnMode.BEGIN;
+		}
 		switch(turnPhase) {
 			case TurnMode.BEGIN:
 				ProposeMove();
@@ -147,7 +150,13 @@ public class Enemy : MonoBehaviour, IPawn
 				agent.updateRotation =false;
 				SetHeading(agent.velocity);
 				OccupySquare();
-				turnPhase = TurnMode.COMBAT;
+				if(OpponentNearby()) {
+					turnPhase=TurnMode.COMBAT;
+				}
+				else
+				{
+					EndTurn();
+				}
 			}
 		}
 	}
@@ -227,6 +236,18 @@ public class Enemy : MonoBehaviour, IPawn
 		return charges > 0; 
 	}
 	
+	public bool OpponentNearby() {
+		RaycastHit[] tiles;
+		
+		tiles=Physics.SphereCastAll(currentSquare.transform.position,1f,-Vector3.up, 1.5f,1<<6);
+		Debug.Log(tiles.Length);
+		for(int i=tiles.Length-1;i>-1;i--) {
+			if(tiles[i].transform.GetComponent<GridSquare>().IsOccupied(this)) {
+				return true;
+			}
+		}
+		return false;
+	}
 	
 	public Vector2 GetPosition() {
 		return new Vector2(currentSquare.transform.position.x,currentSquare.transform.position.z);
@@ -272,6 +293,7 @@ public class Enemy : MonoBehaviour, IPawn
 	}
 	
 	public void Shutdown() {
+		currentSquare.Vacate();
 		//play death animation, then
 		Destroy(gameObject);
 	}
