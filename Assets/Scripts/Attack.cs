@@ -8,11 +8,25 @@ public enum AttackType {
 	HEAVY,
 	SPECIAL
 }
+
+public enum GameStatus {
+	OPPONENT_TURN,
+	PLAYER_TURN,
+	PROCESSING
+}
+public enum TurnMode {
+	BEGIN,
+	ASSESS_PATH,
+	MOVE,
+	COMBAT,
+	END
+}
 //This is where (I suspect) the rock-paper-scissors implementation goes (FLJ, 8/14/2021)
 public class Attack : MonoBehaviour
 {
 	private static IPawn readyPlayer;
 	private static IPawn readyEnemy;
+	public static GameStatus turn = GameStatus.OPPONENT_TURN;
 	
     // Start is called before the first frame update
     void Start()
@@ -109,6 +123,19 @@ public class Attack : MonoBehaviour
 			//a wins
 			inquisitor.RunLightAnim();
 			opponent.RunBlockAnim(inquisitor.DealtDamage());
+			return;
+		}
+	}
+	
+	public static void EndTurn() {
+		if(turn == GameStatus.OPPONENT_TURN) {
+			turn = GameStatus.PLAYER_TURN;
+			Debug.Log("YOUR TURN");
+			return;
+		}
+		if(turn == GameStatus.PLAYER_TURN) {
+			turn = GameStatus.OPPONENT_TURN;
+			Debug.Log("THEIR TURN");
 			return;
 		}
 	}

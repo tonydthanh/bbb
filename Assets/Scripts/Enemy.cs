@@ -19,11 +19,24 @@ public class Enemy : MonoBehaviour, IPawn
 	private AttackType chosenAttack= AttackType.NONE;
 	private int charges = 1;
 	private int hitPoints=10;
+	
+	private TurnMode turnPhase = TurnMode.BEGIN;
+	
+	
+	private UnityEngine.AI.NavMeshAgent agent;
+	
+	private UnityEngine.AI.NavMeshPath tempPath;
+	private ArrayList oldPath = new ArrayList();
+	public int maxSquaresPerTurn = 2;
+	private Vector3 prospectiveEnd;
+	private bool inMotion = false;
+	
     // Start is called before the first frame update
     void Start()
     {
-        
-		OccupySquare();
+        OccupySquare();
+		agent=GetComponent<UnityEngine.AI.NavMeshAgent>();
+		agent.updateRotation = true;
     }
 
     // Update is called once per frame
@@ -33,17 +46,127 @@ public class Enemy : MonoBehaviour, IPawn
 			//prepare for cleanup, and prevent any further combat/movement actions
 			return;
 		}
-		if(!TriPlayer.ready){
+		if(Attack.turn != GameStatus.OPPONENT_TURN){
 			return;
 		}
-        if(CanStrike()) {
-			ChooseAttack();
-			TriPlayer.ready = false;
-			Attack.SetEnemyReady(this);
+		switch(turnPhase) {
+			case TurnMode.BEGIN:
+				ProposeMove();
+				break;
+			case TurnMode.ASSESS_PATH:
+				AssessPath();
+				break;
+			case TurnMode.MOVE:
+				Move();
+				break;
+			case TurnMode.COMBAT:
+				if(CanStrike()) {
+					ChooseAttack();
+					TriPlayer.ready = false;
+					Attack.SetEnemyReady(this);
+				}
+				EndTurn();
+				break;
 		}
+        
     }
     
+    public void EndTurn() {
+		turnPhase= TurnMode.END;
+		Attack.EndTurn();
+	}
     
+    public void ProposeMove() {
+		
+		tempPath = new UnityEngine.AI.NavMeshPath();
+		agent.CalculatePath(TriPlayer.player.currentSquare.transform.position, tempPath);
+		turnPhase = TurnMode.ASSESS_PATH;
+	}
+	
+	void BlankOutPriorPath() {
+		//Tiles along path go back to prior color
+		foreach(GridSquare gs in oldPath) {
+			gs.Unmark();
+		}
+		oldPath.Clear();
+	}
+	
+	public void AssessPath() {
+		if(tempPath.status == UnityEngine.AI.NavMeshPathStatus.PathInvalid) {
+			return;
+		}
+		
+		turnPhase = TurnMode.MOVE;
+		
+		int numCorners = tempPath.corners.Length;
+		Vector3 start=tempPath.corners[0];
+		prospectiveEnd = tempPath.corners[0];
+		GridSquare inTransit;
+		for(int i=1;i<numCorners;i++) {
+			Vector3 diff = (tempPath.corners[i]-start);
+			RaycastHit[] hitSquares = Physics.CapsuleCastAll(start,tempPath.corners[i],0.05f,diff.normalized,0.1f,1<<6);
+			//sortoid.fromWhere = start;
+			//Array.Sort(hitSquares,sortoid);
+			DistanceSorter.Sort(start,hitSquares);
+			for(int j=0;j<hitSquares.Length;j++)
+			{
+				inTransit = hitSquares[j].transform.GetComponent<GridSquare>();
+				if(oldPath.IndexOf(inTransit) > -1) { //we processed this one already
+					continue;
+				}
+				if(inTransit.IsOccupied(this)) {
+					return;
+				}
+				inTransit.Mark();
+				prospectiveEnd = inTransit.transform.position;
+				oldPath.Add(inTransit);
+				
+				if(oldPath.Count >= maxSquaresPerTurn) {
+					return;
+				}
+			}
+			prospectiveEnd = tempPath.corners[i];
+			start = tempPath.corners[i];
+		}
+	}
+	
+	
+	public void Move() {
+		if(!inMotion) {
+			chosenAttack = AttackType.NONE;
+			BlankOutPriorPath();
+			
+			Vector3 endPosition = prospectiveEnd+bottom;
+			agent.updateRotation =true;
+			agent.SetDestination(endPosition);
+			inMotion = true;
+		}
+		else {
+			inMotion = agent.remainingDistance > agent.stoppingDistance/2f;// && agent.velocity != Vector3.zero;
+			if(!inMotion) {
+				agent.updateRotation =false;
+				SetHeading(agent.velocity);
+				OccupySquare();
+				turnPhase = TurnMode.COMBAT;
+			}
+		}
+	}
+	 
+	void SetHeading(Vector3 velocity) {
+		Vector2 determinant = new Vector2(velocity.x,velocity.z);
+		if(Mathf.Abs(velocity.x) > Mathf.Abs(velocity.z)) {
+			determinant.y = 0;
+		}
+		else {
+			determinant.x = 0;
+		}	
+		int angle = 90*Mathf.RoundToInt(Mathf.Rad2Deg*Mathf.Atan2(determinant.x,determinant.y)/90f);
+		Vector3 currentRot = transform.eulerAngles;
+		currentRot.y = angle;
+		
+		transform.eulerAngles=currentRot;
+	}
+	
 	public void OccupySquare() {
 		if(currentSquare!=null) {
 			currentSquare.Vacate();
@@ -88,7 +211,7 @@ public class Enemy : MonoBehaviour, IPawn
 		{
 			return true;
 		}
-		if(distance > range[AttackType.HEAVY])
+		if(distance > range[AttackType.LIGHT])
 		{
 			return false;
 		}

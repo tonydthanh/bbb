@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -40,10 +39,10 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	private Vector3 cameraDiff;
 	private bool moving = false;
-	private GridSquare currentSquare;
+	public GridSquare currentSquare;
 	
 	
-	private DistanceSorter sortoid = new DistanceSorter();
+	
 	
 	public AttackType[] map = new AttackType[]{AttackType.LIGHT,AttackType.HEAVY,AttackType.SPECIAL};
 	public Dictionary <AttackType,int> baseDamage = new Dictionary<AttackType,int>{
@@ -68,6 +67,9 @@ public class TriPlayer : MonoBehaviour, IPawn
     {
 		if(HitPoints() == 0) {
 			return; //no movement or combat actions for you
+		}
+		if(Attack.turn != GameStatus.PLAYER_TURN) {
+			return;
 		}
 		if(assessPath) {
 			ShowTemporaryPath();
@@ -255,8 +257,9 @@ public class TriPlayer : MonoBehaviour, IPawn
 		for(int i=1;i<numCorners;i++) {
 			Vector3 diff = (tempPath.corners[i]-start);
 			RaycastHit[] hitSquares = Physics.CapsuleCastAll(start,tempPath.corners[i],0.05f,diff.normalized,0.1f,1<<6);
-			sortoid.fromWhere = start;
-			Array.Sort(hitSquares,sortoid);
+			//sortoid.fromWhere = start;
+			//Array.Sort(hitSquares,sortoid);
+			DistanceSorter.Sort(start,hitSquares);
 			for(int j=0;j<hitSquares.Length;j++)
 			{
 				inTransit = hitSquares[j].transform.GetComponent<GridSquare>();
@@ -342,29 +345,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 		Destroy(gameObject);
 	}
 	
-	private class DistanceSorter : IComparer {
-		public Vector3 fromWhere;
-		public int Compare (object x, object y) {
-			
-			if(x == null) {
-				return -1;
-			}
-			if(y == null) {
-				return 1;
-			}
-			
-			float a = (((RaycastHit)x).transform.position - fromWhere).magnitude;
-			float b = (((RaycastHit)y).transform.position - fromWhere).magnitude;
-			
-			if(a < b) {
-				return -1;
-			}
-			if(a > b) {
-				return 1;
-			}
-			return 0;
-		}
-	}
+	
 	
 	
 }
