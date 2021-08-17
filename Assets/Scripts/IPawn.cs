@@ -20,4 +20,6 @@ public interface IPawn
 	public void RunSpecialAnim();
 	
 	public void Shutdown();
+	
+	public string GetTag();
 }

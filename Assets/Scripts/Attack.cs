@@ -28,7 +28,7 @@ public class Attack : MonoBehaviour
 {
 	private static IPawn readyPlayer;
 	private static IPawn readyEnemy;
-	public static GameStatus turn = GameStatus.OPPONENT_TURN;
+	public static GameStatus turn = GameStatus.PLAYER_TURN;
 	private static bool opponentDead = false;
     // Start is called before the first frame update
     void Start()
@@ -50,8 +50,19 @@ public class Attack : MonoBehaviour
 		readyPlayer=who;
 	}
     public static void BeginCombatRound() {
+		if(readyPlayer == null) {
+			Debug.Log("Free Hit:Enemy");
+			FreeHit(readyEnemy,TriPlayer.player);
+			return;
+		}
+		if(readyEnemy == null) {
+			Debug.Log("Free Hit:Player");
+			FreeHit(readyPlayer,TriPlayer.player.enemySquare.occupant);
+			return;
+		}
 		Debug.Log(readyPlayer.ChosenAttack()+" "+readyEnemy.ChosenAttack());
 		Rochambeau(readyPlayer,readyEnemy);
+		/*
 		//if both are dead, declare a mutual kill
 		if(readyPlayer.HitPoints() == 0 && readyEnemy.HitPoints() == 0) {
 			Debug.Log("Nobody walked away");
@@ -66,10 +77,8 @@ public class Attack : MonoBehaviour
 			
 			Debug.Log("Game over, man!");
 			return;
-		}
-		//reset for the next bout
-		readyEnemy = null;
-		readyPlayer = null;
+		}*/
+		
 		TriPlayer.ready=true;
 		
 	}
@@ -141,6 +150,29 @@ public class Attack : MonoBehaviour
 		}
 	}
 	
+	private static void FreeHit(IPawn a,IPawn b) {
+		switch(a.ChosenAttack()) {
+			case AttackType.HEAVY:
+				a.RunHeavyAnim();
+				break;
+			case AttackType.LIGHT:
+				a.RunLightAnim();
+				break;
+			case AttackType.SPECIAL:
+				a.RunSpecialAnim();
+				break;
+		
+		}
+		b.RunBlockAnim(a.DealtDamage());
+		
+		
+		//if both are dead, declare a mutual kill
+		if(a.HitPoints() == 0 && b.HitPoints() == 0) {
+			Debug.Log("Nobody walked away");
+		}
+		
+	}
+	
 	private static bool Blocked(IPawn a,IPawn b) {
 		if(a.ChosenAttack() == AttackType.BLOCK) {
 			a.RunBlockAnim();
@@ -149,7 +181,7 @@ public class Attack : MonoBehaviour
 					b.RunHeavyAnim();
 					break;
 				case AttackType.LIGHT:
-					b.RunSpecialAnim();
+					b.RunLightAnim();
 					break;
 				case AttackType.SPECIAL:
 					b.RunSpecialAnim();
@@ -159,9 +191,14 @@ public class Attack : MonoBehaviour
 		}
 		return false;
 	}
-	public static void EndTurn() {
-		if(readyEnemy != null && readyPlayer != null) {
-			BeginCombatRound();
+	public static void EndTurn(bool playerInput = false) {
+		if(!playerInput) {
+			if(readyEnemy != null || readyPlayer != null) {
+				BeginCombatRound();
+			}
+			//reset for the next bout
+			readyEnemy = null;
+			readyPlayer = null;
 		}
 		if(turn == GameStatus.OPPONENT_TURN||opponentDead) {
 			turn = GameStatus.PLAYER_TURN;
@@ -173,5 +210,21 @@ public class Attack : MonoBehaviour
 			Debug.Log("THEIR TURN");
 			return;
 		}
+	}
+	
+	public static void NotifyDead(IPawn who) {
+		if(who.GetTag() == "Player") {
+			turn = GameStatus.GAME_OVER;
+			Debug.Log("Game over, man!");	
+		}
+		else
+		{
+			opponentDead = true;
+		}
+		//if both are dead, declare a mutual kill
+		if(opponentDead && turn == GameStatus.GAME_OVER) {
+			Debug.Log("Nobody walked away");
+		}
+		who.Shutdown();
 	}
 }

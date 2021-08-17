@@ -40,14 +40,15 @@ public class TriPlayer : MonoBehaviour, IPawn
 	private Vector3 cameraDiff;
 	private bool moving = false;
 	public GridSquare currentSquare;
+	public GridSquare enemySquare;
 	
-	
-	
+	private Animation animBox;
 	
 	public Dictionary <AttackType,int> baseDamage = new Dictionary<AttackType,int>{
 		{AttackType.LIGHT,2},
 		{AttackType.HEAVY,4},
 		{AttackType.SPECIAL,3},
+		{AttackType.BLOCK,0}
 	};
 	
 	private AttackType[] map = new AttackType[]{AttackType.LIGHT,AttackType.HEAVY,AttackType.SPECIAL,AttackType.BLOCK};
@@ -64,6 +65,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 		agent=GetComponent<UnityEngine.AI.NavMeshAgent>();
 		agent.updateRotation = true;
 		cameraDiff = Camera.main.transform.position - transform.position;
+		animBox=GetComponentInChildren<Animation>();
 		
     }
 
@@ -78,10 +80,12 @@ public class TriPlayer : MonoBehaviour, IPawn
 		}
 		if(turnPhase == TurnMode.END) {
 			turnPhase = TurnMode.BEGIN;
+			mode = PlayerMode.IDLE;
 		}
 		if(assessPath) {
 			ShowTemporaryPath();
 		}
+		
         switch(mode) {
 			case PlayerMode.PRESSED:
 				break;
@@ -112,7 +116,8 @@ public class TriPlayer : MonoBehaviour, IPawn
 				SetHeading(agent.velocity);
 				Debug.Log("stopped");
 				OccupySquare();
-				if(OpponentNearby()) {
+				enemySquare = OpponentNearby();
+				if(enemySquare !=null) {
 					turnPhase=TurnMode.COMBAT;
 				}
 				
@@ -141,6 +146,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 		if(Attack.turn != GameStatus.PLAYER_TURN) {
 			return;
 		}
+		
 		if(mode == PlayerMode.IDLE) {
 			startPointerPos = Input.mousePosition;
 			holdTime = Time.time+lengthForLongpress;
@@ -232,7 +238,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 	public void EndTurn() {
 		RetractCommandMenu();
 		turnPhase= TurnMode.END;
-		Attack.EndTurn();
+		Attack.EndTurn(true);
 	}
 	
 	void MoveIt(Vector2 screenPos) {
@@ -360,11 +366,20 @@ public class TriPlayer : MonoBehaviour, IPawn
 	}
 	public void RunBlockAnim(int damage = 0) {
 		hitPoints -= damage;
-		if(damage == 0)
-			Debug.Log("OUCH!"+damage);
+		if(damage == 0) {
+			animBox.Play("Block");
+			return;
+		}
+		Debug.Log("SUSTAINED "+damage);
 		if(hitPoints <=0) {
 			mode = PlayerMode.DEAD; //to prevent response to user activity.
+			Attack.NotifyDead(this);
 		}
+		else
+		{
+			animBox.Play("Hit");
+		}
+		
 	}
 	
 	public int DealtDamage() {
@@ -373,10 +388,12 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	public void RunLightAnim() {
 		Debug.Log("PLAYER:Light");
+		animBox.Play("Light");
 	}
 	
 	public void RunHeavyAnim() {
 		Debug.Log("PLAYER:Heavy");
+		animBox.Play("Heavy");
 	}
 	
 	public void RunSpecialAnim() {
@@ -385,22 +402,26 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	public void Shutdown() {
 		currentSquare.Vacate();
-		//play death animation, then
-		Destroy(gameObject);
+		//play death animation, then queue destruction
+		animBox.Play("Death");
+		Destroy(gameObject, 3f+animBox["Death"].length);
 	}
 	
+	public string GetTag() {
+		return gameObject.tag;
+	}
 	
-	public bool OpponentNearby() {
+	public GridSquare OpponentNearby() {
 		RaycastHit[] tiles;
 		
 		tiles=Physics.SphereCastAll(currentSquare.transform.position,1f,-Vector3.up, 1.5f,1<<6);
-		Debug.Log(tiles.Length);
+		
 		for(int i=tiles.Length-1;i>-1;i--) {
 			if(tiles[i].transform.GetComponent<GridSquare>().IsOccupied(this)) {
-				return true;
+				return tiles[i].transform.GetComponent<GridSquare>();
 			}
 		}
-		return false;
+		return null;
 	}
 	
 }

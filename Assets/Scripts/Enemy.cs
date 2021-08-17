@@ -240,7 +240,7 @@ public class Enemy : MonoBehaviour, IPawn
 		RaycastHit[] tiles;
 		
 		tiles=Physics.SphereCastAll(currentSquare.transform.position,1f,-Vector3.up, 1.5f,1<<6);
-		Debug.Log(tiles.Length);
+		
 		for(int i=tiles.Length-1;i>-1;i--) {
 			if(tiles[i].transform.GetComponent<GridSquare>().IsOccupied(this)) {
 				return true;
@@ -273,6 +273,9 @@ public class Enemy : MonoBehaviour, IPawn
 	public void RunBlockAnim(int damage = 0) {
 		hitPoints -= damage;
 		Debug.Log("UGH!"+damage);
+		if(hitPoints <=0) {
+			Attack.NotifyDead(this);
+		}
 	}
 	
 	public int DealtDamage() {
@@ -296,5 +299,9 @@ public class Enemy : MonoBehaviour, IPawn
 		currentSquare.Vacate();
 		//play death animation, then
 		Destroy(gameObject);
+	}
+	
+	public string GetTag() {
+		return gameObject.tag;
 	}
 }
