@@ -21,6 +21,7 @@ public enum TurnMode {
 	ASSESS_PATH,
 	MOVE,
 	COMBAT,
+	TOOK_HIT,
 	END
 }
 //This is where (I suspect) the rock-paper-scissors implementation goes (FLJ, 8/14/2021)
@@ -55,7 +56,7 @@ public class Attack : MonoBehaviour
 			FreeHit(readyEnemy,TriPlayer.player);
 			return;
 		}
-		if(readyEnemy == null) {
+		if(readyEnemy == null && TriPlayer.player.enemySquare != null) {
 			Debug.Log("Free Hit:Player");
 			FreeHit(readyPlayer,TriPlayer.player.enemySquare.occupant);
 			return;

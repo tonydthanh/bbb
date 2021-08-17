@@ -22,4 +22,6 @@ public interface IPawn
 	public void Shutdown();
 	
 	public string GetTag();
+	
+	public void Shove();
 }

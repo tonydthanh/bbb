@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class Enemy : MonoBehaviour, IPawn
 {
+	public string species="Pigbot";
 	public Vector3 bottom = new Vector3(0,0.28f,0);
 	public  Dictionary<AttackType,int> range = new Dictionary<AttackType,int>{
 		{AttackType.LIGHT,1},
@@ -30,13 +31,17 @@ public class Enemy : MonoBehaviour, IPawn
 	public int maxSquaresPerTurn = 2;
 	private Vector3 prospectiveEnd;
 	private bool inMotion = false;
+	private Animation animBox;
 	
+	public bool debug = false;
     // Start is called before the first frame update
     void Start()
     {
         OccupySquare();
 		agent=GetComponent<UnityEngine.AI.NavMeshAgent>();
 		agent.updateRotation = true;
+		animBox=GetComponentInChildren<Animation>();
+		species+="|";
     }
 
     // Update is called once per frame
@@ -46,9 +51,14 @@ public class Enemy : MonoBehaviour, IPawn
 			//prepare for cleanup, and prevent any further combat/movement actions
 			return;
 		}
+		if(turnPhase == TurnMode.TOOK_HIT) {
+			GoBackwards();
+		}
+				
 		if(Attack.turn != GameStatus.OPPONENT_TURN){
 			return;
 		}
+		
 		if(turnPhase == TurnMode.END) {
 			turnPhase = TurnMode.BEGIN;
 		}
@@ -75,6 +85,7 @@ public class Enemy : MonoBehaviour, IPawn
     }
     
     public void EndTurn() {
+		Debug.Log("DONE");
 		turnPhase= TurnMode.END;
 		Attack.EndTurn();
 	}
@@ -145,7 +156,7 @@ public class Enemy : MonoBehaviour, IPawn
 			inMotion = true;
 		}
 		else {
-			inMotion = agent.remainingDistance > agent.stoppingDistance/2f;// && agent.velocity != Vector3.zero;
+			inMotion = GroundDistance(transform.position,agent.destination) > agent.stoppingDistance;
 			if(!inMotion) {
 				agent.updateRotation =false;
 				SetHeading(agent.velocity);
@@ -179,10 +190,13 @@ public class Enemy : MonoBehaviour, IPawn
 	public void OccupySquare() {
 		if(currentSquare!=null) {
 			currentSquare.Vacate();
+			
+			Debug.Log("Leaving "+currentSquare.transform.position.ToString("F2"));
 		}
 		RaycastHit hitInfo;
 		Physics.SphereCast(transform.position,0.05f,-Vector3.up,out hitInfo, 1.5f,1<<6);
 		currentSquare = hitInfo.transform.GetComponent<GridSquare>();
+		Debug.Log("Landed on "+currentSquare.transform.position.ToString("F2"));
 		currentSquare.Occupy(this);
 	}
 	
@@ -195,7 +209,7 @@ public class Enemy : MonoBehaviour, IPawn
 			chosenAttack = AttackType.HEAVY;		}
 		if(distance <= range[AttackType.LIGHT]) {
 			//depending on how aggressive we are, we could probably deal more damage with the HEAVY at close range
-			//chosenAttack = AttackType.LIGHT;
+			chosenAttack = AttackType.LIGHT;
 		}
 		if(chosenAttack == AttackType.NONE) {
 			if(CanUseSpecial() && SpecialCouldReach(distance))
@@ -243,6 +257,7 @@ public class Enemy : MonoBehaviour, IPawn
 		
 		for(int i=tiles.Length-1;i>-1;i--) {
 			if(tiles[i].transform.GetComponent<GridSquare>().IsOccupied(this)) {
+				SetHeading(tiles[i].transform.position - currentSquare.transform.position);
 				return true;
 			}
 		}
@@ -272,9 +287,18 @@ public class Enemy : MonoBehaviour, IPawn
 	}
 	public void RunBlockAnim(int damage = 0) {
 		hitPoints -= damage;
+		if(damage == 0) {
+			animBox.Play(species+"Block");
+			return;
+		}
+			
 		Debug.Log("UGH!"+damage);
 		if(hitPoints <=0) {
 			Attack.NotifyDead(this);
+		}
+		else
+		{
+			animBox.Play(species+"Hit");
 		}
 	}
 	
@@ -284,10 +308,12 @@ public class Enemy : MonoBehaviour, IPawn
 	
 	public void RunLightAnim() {
 		Debug.Log("ENEMY:Light");
+		animBox.Play(species+"Light");
 	}
 	
 	public void RunHeavyAnim() {
 		Debug.Log("ENEMY:Heavy");
+		animBox.Play(species+"Heavy");
 	}
 	
 	public void RunSpecialAnim() {
@@ -297,11 +323,61 @@ public class Enemy : MonoBehaviour, IPawn
 	
 	public void Shutdown() {
 		currentSquare.Vacate();
-		//play death animation, then
-		Destroy(gameObject);
+		//play death animation, then queue destruction
+		animBox.Play(species+"Death");
+		Destroy(gameObject, 3f+animBox[species+"Death"].length);
 	}
 	
 	public string GetTag() {
 		return gameObject.tag;
+	}
+	
+	public void Shove() {
+		Vector3 winner= currentSquare.transform.position;
+		Vector3 playerPos = TriPlayer.player.currentSquare.transform.position;
+		float bestDistance = (playerPos - currentSquare.transform.position).magnitude;
+		float testDistance;
+		RaycastHit[] tiles;
+		
+		tiles=Physics.SphereCastAll(currentSquare.transform.position,.5f,-Vector3.up, 1.5f,1<<6);
+		
+		for(int i=tiles.Length-1;i>-1;i--) {
+			if(tiles[i].transform.GetComponent<GridSquare>().IsOccupied(this)) {
+				continue;
+			}
+			testDistance = (playerPos - tiles[i].transform.position).magnitude;
+			if(testDistance > bestDistance) {
+				bestDistance=testDistance;
+				winner=tiles[i].transform.position;
+			}
+		}
+		prospectiveEnd = (winner);
+		turnPhase = TurnMode.TOOK_HIT;
+		inMotion = false;
+	}
+	
+	void GoBackwards() {
+		if(!inMotion) {
+			chosenAttack = AttackType.NONE;
+			BlankOutPriorPath();
+			
+			Vector3 endPosition = prospectiveEnd+bottom;
+			agent.updateRotation =false;
+			agent.SetDestination(endPosition);
+			inMotion = true;
+		}
+		else {
+			inMotion = GroundDistance(transform.position,agent.destination) > agent.stoppingDistance;
+			SetHeading(-agent.velocity);
+			if(!inMotion) {
+				agent.updateRotation =false;
+				OccupySquare();
+				EndTurn();
+			}
+		}
+	}
+	
+	float GroundDistance(Vector3 start,Vector3 end) {
+		return Mathf.Sqrt(Mathf.Pow(end.x-start.x,2)+Mathf.Pow(end.z-start.z,2));
 	}
 }

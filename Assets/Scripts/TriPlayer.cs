@@ -80,6 +80,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 		}
 		if(turnPhase == TurnMode.END) {
 			turnPhase = TurnMode.BEGIN;
+			enemySquare = OpponentNearby();
 			mode = PlayerMode.IDLE;
 		}
 		if(assessPath) {
@@ -118,6 +119,8 @@ public class TriPlayer : MonoBehaviour, IPawn
 				OccupySquare();
 				enemySquare = OpponentNearby();
 				if(enemySquare !=null) {
+					
+					Debug.Log("Suspect "+enemySquare.transform.position.ToString("F2"));
 					turnPhase=TurnMode.COMBAT;
 				}
 				
@@ -237,6 +240,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	public void EndTurn() {
 		RetractCommandMenu();
+		enemySquare = OpponentNearby();
 		turnPhase= TurnMode.END;
 		Attack.EndTurn(true);
 	}
@@ -392,6 +396,8 @@ public class TriPlayer : MonoBehaviour, IPawn
 	}
 	
 	public void RunHeavyAnim() {
+		Debug.Log("Aimed at "+enemySquare.transform.position.ToString("F2"));
+		enemySquare.occupant.Shove();
 		Debug.Log("PLAYER:Heavy");
 		animBox.Play("Heavy");
 	}
@@ -418,10 +424,13 @@ public class TriPlayer : MonoBehaviour, IPawn
 		
 		for(int i=tiles.Length-1;i>-1;i--) {
 			if(tiles[i].transform.GetComponent<GridSquare>().IsOccupied(this)) {
+				SetHeading(tiles[i].transform.position - currentSquare.transform.position);
 				return tiles[i].transform.GetComponent<GridSquare>();
 			}
 		}
 		return null;
 	}
-	
+		
+	public void Shove() {
+	}
 }

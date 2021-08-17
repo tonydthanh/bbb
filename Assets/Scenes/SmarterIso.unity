@@ -255,8 +255,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e371cd2bc634239a5bfd2862a87cb695, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  species: Pigbot
   bottom: {x: 0, y: 0.28, z: 0}
   maxSquaresPerTurn: 2
+  debug: 0
 --- !u!1001 &189886977
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1613,6 +1615,46 @@ PrefabInstance:
       propertyPath: m_Name
       value: pigbot
       objectReference: {fileID: 0}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animation
+      value: 
+      objectReference: {fileID: 4189614954493596176, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animations.Array.size
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animations.Array.data[0]
+      value: 
+      objectReference: {fileID: 4189614954493596176, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animations.Array.data[1]
+      value: 
+      objectReference: {fileID: 958620043941366928, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animations.Array.data[2]
+      value: 
+      objectReference: {fileID: 5431246447162214332, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animations.Array.data[3]
+      value: 
+      objectReference: {fileID: -1498018000128410627, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animations.Array.data[4]
+      value: 
+      objectReference: {fileID: -8314504357326807870, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animations.Array.data[5]
+      value: 
+      objectReference: {fileID: -7247145564869500790, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animations.Array.data[6]
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 2223639932434330405, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
+      propertyPath: m_Animations.Array.data[7]
+      value: 
+      objectReference: {fileID: -3100369314251171874, guid: 0a360db5e0263449189e332717bf35d4, type: 3}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 794456fa320fa48d3a2eb6b07ce6e8a5, type: 3}
 --- !u!1 &1378046230
