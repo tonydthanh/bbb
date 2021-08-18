@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public enum PlayerMode {
 	IDLE,
@@ -36,11 +37,14 @@ public class TriPlayer : MonoBehaviour, IPawn
 	private Vector3 prospectiveEnd;
 	
 	public GameObject actionMenu;
+	public GameObject powerGauge;
 	
 	private Vector3 cameraDiff;
 	private bool moving = false;
 	public GridSquare currentSquare;
 	public GridSquare enemySquare;
+	public int powerFillupRatePerTurn = 25; //percentage
+	private int powerMeter=0;
 	
 	private Animation animBox;
 	
@@ -81,6 +85,8 @@ public class TriPlayer : MonoBehaviour, IPawn
 		if(turnPhase == TurnMode.END) {
 			turnPhase = TurnMode.BEGIN;
 			enemySquare = OpponentNearby();
+			powerMeter=Mathf.Min(powerMeter+powerFillupRatePerTurn,100);
+			powerGauge.GetComponent<Text>().text=(powerMeter+"%");
 			mode = PlayerMode.IDLE;
 		}
 		if(assessPath) {
@@ -217,6 +223,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	public void DeployCommandMenu() {
 		actionMenu.SetActive(true);
+		actionMenu.transform.Find("ButtonHeavyAttack").gameObject.SetActive(powerMeter == 100);
 		holdTime=Time.time+secondsUntilHideMenu;
 	}
 	
@@ -229,6 +236,9 @@ public class TriPlayer : MonoBehaviour, IPawn
 		chosenAttack = map[chosen];
 		Debug.Log("Player:"+chosenAttack);
 		RetractCommandMenu();
+		if(chosenAttack == AttackType.HEAVY) {
+			powerMeter = 0; //arm the reload
+		}
 		Attack.SetPlayerReady(this);
 		EndTurn();
 	}

@@ -56,29 +56,17 @@ public class Attack : MonoBehaviour
 			FreeHit(readyEnemy,TriPlayer.player);
 			return;
 		}
-		if(readyEnemy == null && TriPlayer.player.enemySquare != null) {
-			Debug.Log("Free Hit:Player");
-			FreeHit(readyPlayer,TriPlayer.player.enemySquare.occupant);
+		if(readyEnemy == null){
+			//make sure there's something to swing at
+			if(TriPlayer.player.enemySquare != null && TriPlayer.player.enemySquare.occupant !=null) {
+				Debug.Log("Free Hit:Player");
+				FreeHit(readyPlayer,TriPlayer.player.enemySquare.occupant);
+			}
 			return;
 		}
 		Debug.Log(readyPlayer.ChosenAttack()+" "+readyEnemy.ChosenAttack());
 		Rochambeau(readyPlayer,readyEnemy);
-		/*
-		//if both are dead, declare a mutual kill
-		if(readyPlayer.HitPoints() == 0 && readyEnemy.HitPoints() == 0) {
-			Debug.Log("Nobody walked away");
-		}
-		if(readyEnemy.HitPoints() == 0) {
-			opponentDead = true;
-			readyEnemy.Shutdown();
-		}
-		if(readyPlayer.HitPoints() == 0) {
-			turn = GameStatus.GAME_OVER;
-			readyPlayer.Shutdown();
-			
-			Debug.Log("Game over, man!");
-			return;
-		}*/
+		
 		
 		TriPlayer.ready=true;
 		
@@ -229,3 +217,6 @@ public class Attack : MonoBehaviour
 		who.Shutdown();
 	}
 }
+/* Pre-"after action report": 
+ * I suspect the IPawns should inform the central class of their positions (FLJ, 8/17/21)
+ */

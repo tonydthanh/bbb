@@ -34,6 +34,12 @@ public class Enemy : MonoBehaviour, IPawn
 	private Animation animBox;
 	
 	public bool debug = false;
+	public int powerFillupRatePerTurn = 25; //percentage
+	private int powerMeter=0;
+	public int morale = 5; //1 means "will flee upon getting hit";10 means "will fight to the death" ; 0 implies "will only fight when cornered"
+	//A full Power Meter will embolden us to use a Heavy attack on the player.
+	private int criticalHealth; //calculated minimum health before fleeing 
+	private bool fleeing = false;
     // Start is called before the first frame update
     void Start()
     {
@@ -42,6 +48,7 @@ public class Enemy : MonoBehaviour, IPawn
 		agent.updateRotation = true;
 		animBox=GetComponentInChildren<Animation>();
 		species+="|";
+		criticalHealth = (int)(hitPoints*(1f-morale/10f));
     }
 
     // Update is called once per frame
@@ -64,6 +71,8 @@ public class Enemy : MonoBehaviour, IPawn
 		}
 		switch(turnPhase) {
 			case TurnMode.BEGIN:
+				fleeing=false;
+				powerMeter=Mathf.Min(powerMeter+powerFillupRatePerTurn,100);
 				ProposeMove();
 				break;
 			case TurnMode.ASSESS_PATH:
@@ -75,6 +84,7 @@ public class Enemy : MonoBehaviour, IPawn
 			case TurnMode.COMBAT:
 				if(CanStrike()) {
 					ChooseAttack();
+					Debug.Log("CPU:"+chosenAttack);
 					TriPlayer.ready = false;
 					Attack.SetEnemyReady(this);
 				}
@@ -91,10 +101,44 @@ public class Enemy : MonoBehaviour, IPawn
 	}
     
     public void ProposeMove() {
-		
+		/*
+		 * We'll advance toward the player if one or both of these is the case:
+		 * -we have a full Power Meter (and could therefore severely damage the player with a Heavy strike)
+		 * -hitPoints > criticalHealth
+		 */
 		tempPath = new UnityEngine.AI.NavMeshPath();
-		agent.CalculatePath(TriPlayer.player.currentSquare.transform.position, tempPath);
-		turnPhase = TurnMode.ASSESS_PATH;
+		if(hitPoints > criticalHealth || powerMeter == 100) 
+		{
+			agent.CalculatePath(TriPlayer.player.currentSquare.transform.position, tempPath);
+			turnPhase = TurnMode.ASSESS_PATH;
+		}
+		else 
+		{
+			//Put maxSquaresPerTurn between us and him
+			fleeing = true;
+			Vector3 winner= currentSquare.transform.position;
+			Vector3 playerPos = TriPlayer.player.currentSquare.transform.position;
+			float bestDistance = GroundDistance(playerPos,currentSquare.transform.position);
+			float testDistance;
+			RaycastHit[] tiles;
+		
+			//Find the tile farthest away from the player
+			tiles=Physics.SphereCastAll(currentSquare.transform.position,maxSquaresPerTurn*2f-0.5f,-Vector3.up, 1.5f,1<<6);
+					
+			for(int i=tiles.Length-1;i>-1;i--) {
+				if(tiles[i].transform.GetComponent<GridSquare>().IsOccupied(this)) {
+					continue;
+				}
+				testDistance = (playerPos - tiles[i].transform.position).magnitude;
+				if(testDistance > bestDistance) {
+					bestDistance=testDistance;
+					winner=tiles[i].transform.position;
+				}
+			}
+			//and figure out how to move in the general direction thereof
+			agent.CalculatePath(winner, tempPath);
+			turnPhase = TurnMode.ASSESS_PATH;
+		}
 	}
 	
 	void BlankOutPriorPath() {
@@ -161,7 +205,7 @@ public class Enemy : MonoBehaviour, IPawn
 				agent.updateRotation =false;
 				SetHeading(agent.velocity);
 				OccupySquare();
-				if(OpponentNearby()) {
+				if(!fleeing && OpponentNearby()) {
 					turnPhase=TurnMode.COMBAT;
 				}
 				else
@@ -177,9 +221,10 @@ public class Enemy : MonoBehaviour, IPawn
 		if(Mathf.Abs(velocity.x) > Mathf.Abs(velocity.z)) {
 			determinant.y = 0;
 		}
-		else {
+		else{
 			determinant.x = 0;
 		}	
+		
 		int angle = 90*Mathf.RoundToInt(Mathf.Rad2Deg*Mathf.Atan2(determinant.x,determinant.y)/90f);
 		Vector3 currentRot = transform.eulerAngles;
 		currentRot.y = angle;
@@ -201,10 +246,21 @@ public class Enemy : MonoBehaviour, IPawn
 	}
 	
 	protected void ChooseAttack() {
-		int distance = DistToPlayer();
 		//if we're here, at least one of our attacks is in range
 		//consider the Special a last resort
+		
+		
 		chosenAttack = AttackType.NONE;
+		if(powerMeter == 100) {
+			//use the Heavy!
+			chosenAttack = AttackType.HEAVY;
+			powerMeter = 0; //arm the reload
+			return;
+		}
+		chosenAttack = AttackType.LIGHT;
+		
+		/*
+		int distance = DistToPlayer();
 		if(distance <= range[AttackType.HEAVY]) {
 			chosenAttack = AttackType.HEAVY;		}
 		if(distance <= range[AttackType.LIGHT]) {
@@ -217,7 +273,7 @@ public class Enemy : MonoBehaviour, IPawn
 				chosenAttack = AttackType.SPECIAL;
 			}
 		}
-		Debug.Log("CPU:"+chosenAttack);
+		*/
 	}
 	
 	public AttackType ChosenAttack() {
@@ -226,19 +282,8 @@ public class Enemy : MonoBehaviour, IPawn
 	
 	protected bool CanStrike() {
 		//Is the player within striking distance of any of our attacks?
-		int distance = DistToPlayer();
-		if(distance < 1) {
-			return false;
-		}
-		if(CanUseSpecial() && SpecialCouldReach(distance))
-		{
-			return true;
-		}
-		if(distance > range[AttackType.LIGHT])
-		{
-			return false;
-		}
-		return true;
+		return OpponentNearby(); //rhe "melee" scenario; when ranged attacks come in, this will be more interesting
+		
 	}
 	
 	protected bool SpecialCouldReach(int distance) { //holy (expletive) this is abstract
@@ -381,3 +426,18 @@ public class Enemy : MonoBehaviour, IPawn
 		return Mathf.Sqrt(Mathf.Pow(end.x-start.x,2)+Mathf.Pow(end.z-start.z,2));
 	}
 }
+/*
+ 1. Movement phase:
+
+Pursue the player IFF OK on hit points, else flee
+-danger point is a function of "morale" attribute;initial HP*(1-(morale/10))
+
+2. Combat phase:
+
+
+Is the Heavy attack gauge full?
+-if no, Light attack, and done
+-if yes, Heavy attack, clear the gauge, and done
+
+Power meter fills x % per turn;
+*/
