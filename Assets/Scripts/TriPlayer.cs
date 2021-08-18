@@ -38,6 +38,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 	
 	public GameObject actionMenu;
 	public GameObject powerGauge;
+	public GameObject healthGauge;
 	
 	private Vector3 cameraDiff;
 	private bool moving = false;
@@ -86,7 +87,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 			turnPhase = TurnMode.BEGIN;
 			enemySquare = OpponentNearby();
 			powerMeter=Mathf.Min(powerMeter+powerFillupRatePerTurn,100);
-			powerGauge.GetComponent<Text>().text=(powerMeter+"%");
+			powerGauge.GetComponent<Text>().text=($"Attack:{powerMeter,3}%");
 			mode = PlayerMode.IDLE;
 		}
 		if(assessPath) {
@@ -117,7 +118,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 		if(moving) {
 			
 			Camera.main.transform.position = transform.position + cameraDiff;
-			moving = agent.remainingDistance > agent.stoppingDistance/2f;// && agent.velocity != Vector3.zero;
+			moving = Attack.GroundDistance(transform.position,agent.destination) > agent.stoppingDistance;
 			if(!moving) {
 				agent.updateRotation =false;
 				SetHeading(agent.velocity);
@@ -238,6 +239,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 		RetractCommandMenu();
 		if(chosenAttack == AttackType.HEAVY) {
 			powerMeter = 0; //arm the reload
+			powerGauge.GetComponent<Text>().text=($"Attack:{powerMeter,3}%");
 		}
 		Attack.SetPlayerReady(this);
 		EndTurn();
@@ -385,6 +387,7 @@ public class TriPlayer : MonoBehaviour, IPawn
 			return;
 		}
 		Debug.Log("SUSTAINED "+damage);
+		healthGauge.GetComponent<Text>().text=($"Health:{hitPoints,2}");
 		if(hitPoints <=0) {
 			mode = PlayerMode.DEAD; //to prevent response to user activity.
 			Attack.NotifyDead(this);

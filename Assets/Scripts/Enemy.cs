@@ -109,6 +109,7 @@ public class Enemy : MonoBehaviour, IPawn
 		tempPath = new UnityEngine.AI.NavMeshPath();
 		if(hitPoints > criticalHealth || powerMeter == 100) 
 		{
+			Debug.Log("EXAMINE:"+currentSquare.transform.position.ToString("F2")+" to "+TriPlayer.player.currentSquare.transform.position.ToString("F2"));
 			agent.CalculatePath(TriPlayer.player.currentSquare.transform.position, tempPath);
 			turnPhase = TurnMode.ASSESS_PATH;
 		}
@@ -118,7 +119,7 @@ public class Enemy : MonoBehaviour, IPawn
 			fleeing = true;
 			Vector3 winner= currentSquare.transform.position;
 			Vector3 playerPos = TriPlayer.player.currentSquare.transform.position;
-			float bestDistance = GroundDistance(playerPos,currentSquare.transform.position);
+			float bestDistance = Attack.GroundDistance(playerPos,currentSquare.transform.position);
 			float testDistance;
 			RaycastHit[] tiles;
 		
@@ -200,7 +201,7 @@ public class Enemy : MonoBehaviour, IPawn
 			inMotion = true;
 		}
 		else {
-			inMotion = GroundDistance(transform.position,agent.destination) > agent.stoppingDistance;
+			inMotion = Attack.GroundDistance(transform.position,agent.destination) > agent.stoppingDistance;
 			if(!inMotion) {
 				agent.updateRotation =false;
 				SetHeading(agent.velocity);
@@ -296,6 +297,17 @@ public class Enemy : MonoBehaviour, IPawn
 	}
 	
 	public bool OpponentNearby() {
+		
+		Vector3 opponentPos=TriPlayer.player.currentSquare.transform.position;
+		if(opponentPos.x==currentSquare.transform.position.x) {
+			return (Mathf.Abs(opponentPos.z-currentSquare.transform.position.z)==1);
+		}
+		if(opponentPos.z==currentSquare.transform.position.z) {
+			return (Mathf.Abs(opponentPos.x-currentSquare.transform.position.x)==1);
+		}
+		
+		return false;
+		/*
 		RaycastHit[] tiles;
 		
 		tiles=Physics.SphereCastAll(currentSquare.transform.position,1f,-Vector3.up, 1.5f,1<<6);
@@ -307,6 +319,7 @@ public class Enemy : MonoBehaviour, IPawn
 			}
 		}
 		return false;
+		*/
 	}
 	
 	public Vector2 GetPosition() {
@@ -412,7 +425,7 @@ public class Enemy : MonoBehaviour, IPawn
 			inMotion = true;
 		}
 		else {
-			inMotion = GroundDistance(transform.position,agent.destination) > agent.stoppingDistance;
+			inMotion = Attack.GroundDistance(transform.position,agent.destination) > agent.stoppingDistance;
 			SetHeading(-agent.velocity);
 			if(!inMotion) {
 				agent.updateRotation =false;
@@ -422,9 +435,7 @@ public class Enemy : MonoBehaviour, IPawn
 		}
 	}
 	
-	float GroundDistance(Vector3 start,Vector3 end) {
-		return Mathf.Sqrt(Mathf.Pow(end.x-start.x,2)+Mathf.Pow(end.z-start.z,2));
-	}
+	
 }
 /*
  1. Movement phase:

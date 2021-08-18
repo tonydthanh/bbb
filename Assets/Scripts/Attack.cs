@@ -216,6 +216,11 @@ public class Attack : MonoBehaviour
 		}
 		who.Shutdown();
 	}
+	
+	//utility
+	public static float GroundDistance(Vector3 start,Vector3 end) {
+		return Mathf.Sqrt(Mathf.Pow(end.x-start.x,2)+Mathf.Pow(end.z-start.z,2));
+	}
 }
 /* Pre-"after action report": 
  * I suspect the IPawns should inform the central class of their positions (FLJ, 8/17/21)
