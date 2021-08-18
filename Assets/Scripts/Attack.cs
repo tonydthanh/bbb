@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public enum AttackType {
 	NONE,
@@ -27,6 +28,7 @@ public enum TurnMode {
 //This is where (I suspect) the rock-paper-scissors implementation goes (FLJ, 8/14/2021)
 public class Attack : MonoBehaviour
 {
+	public static Text gameStatus;
 	private static IPawn readyPlayer;
 	private static IPawn readyEnemy;
 	public static GameStatus turn = GameStatus.PLAYER_TURN;
@@ -192,11 +194,13 @@ public class Attack : MonoBehaviour
 		if(turn == GameStatus.OPPONENT_TURN||opponentDead) {
 			turn = GameStatus.PLAYER_TURN;
 			Debug.Log("YOUR TURN");
+			Attack.gameStatus.text="YOUR TURN";
 			return;
 		}
 		if(turn == GameStatus.PLAYER_TURN && !opponentDead) {
 			turn = GameStatus.OPPONENT_TURN;
 			Debug.Log("THEIR TURN");
+			Attack.gameStatus.text="THEIR TURN";
 			return;
 		}
 	}
@@ -204,17 +208,22 @@ public class Attack : MonoBehaviour
 	public static void NotifyDead(IPawn who) {
 		if(who.GetTag() == "Player") {
 			turn = GameStatus.GAME_OVER;
-			Debug.Log("Game over, man!");	
+			Attack.gameStatus.text="GAME OVER";
 		}
 		else
 		{
 			opponentDead = true;
+			Attack.gameStatus.text="ENEMY DOWN";
 		}
 		//if both are dead, declare a mutual kill
 		if(opponentDead && turn == GameStatus.GAME_OVER) {
-			Debug.Log("Nobody walked away");
+			Attack.gameStatus.text="BOTH ARE DOWN";
 		}
 		who.Shutdown();
+	}
+	
+	public static void NotifyWon() {
+		Attack.gameStatus.text="Victory!";
 	}
 	
 	//utility

@@ -38,7 +38,7 @@ public class GridSquare : MonoBehaviour
 		occupant = null;
 	}
 	
-	public void Occupy(IPawn incoming) {
+	public virtual void Occupy(IPawn incoming) {
 		occupant = incoming;
 	}
 	

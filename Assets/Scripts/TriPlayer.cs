@@ -65,6 +65,8 @@ public class TriPlayer : MonoBehaviour, IPawn
     // Start is called before the first frame update
     void Start()
     {
+		Attack.gameStatus=GameObject.Find("Canvas/Status").GetComponent<Text>();
+		Attack.gameStatus.text="YOUR TURN";
 		player=this;
 		OccupySquare();
 		agent=GetComponent<UnityEngine.AI.NavMeshAgent>();
