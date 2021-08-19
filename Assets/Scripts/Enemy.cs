@@ -15,7 +15,7 @@ public class Enemy : MonoBehaviour, IPawn
 		{AttackType.HEAVY,4},
 		{AttackType.SPECIAL,3},
 	};
-	private GridSquare currentSquare;
+	public GridSquare currentSquare;
 	
 	private AttackType chosenAttack= AttackType.NONE;
 	private int charges = 1;
@@ -35,13 +35,14 @@ public class Enemy : MonoBehaviour, IPawn
 	
 	public bool debug = false;
 	public int powerFillupRatePerTurn = 25; //percentage
-	private int powerMeter=0;
+	protected int powerMeter=0;
 	public int morale = 5; //1 means "will flee upon getting hit";10 means "will fight to the death" ; 0 implies "will only fight when cornered"
 	//A full Power Meter will embolden us to use a Heavy attack on the player.
 	private int criticalHealth; //calculated minimum health before fleeing 
 	private bool fleeing = false;
+	private bool clocked = false; //A flag to prevents approaching on the next turn after getting knocked back
     // Start is called before the first frame update
-    void Start()
+    protected virtual void Start()
     {
         OccupySquare();
 		agent=GetComponent<UnityEngine.AI.NavMeshAgent>();
@@ -73,7 +74,13 @@ public class Enemy : MonoBehaviour, IPawn
 			case TurnMode.BEGIN:
 				fleeing=false;
 				powerMeter=Mathf.Min(powerMeter+powerFillupRatePerTurn,100);
-				ProposeMove();
+				if(!clocked) {
+					ProposeMove();
+				}
+				else {
+					clocked=false;
+					turnPhase = TurnMode.COMBAT;
+				}
 				break;
 			case TurnMode.ASSESS_PATH:
 				AssessPath();
@@ -246,7 +253,7 @@ public class Enemy : MonoBehaviour, IPawn
 		currentSquare.Occupy(this);
 	}
 	
-	protected void ChooseAttack() {
+	protected virtual void ChooseAttack() {
 		//if we're here, at least one of our attacks is in range
 		//consider the Special a last resort
 		
@@ -260,21 +267,6 @@ public class Enemy : MonoBehaviour, IPawn
 		}
 		chosenAttack = AttackType.LIGHT;
 		
-		/*
-		int distance = DistToPlayer();
-		if(distance <= range[AttackType.HEAVY]) {
-			chosenAttack = AttackType.HEAVY;		}
-		if(distance <= range[AttackType.LIGHT]) {
-			//depending on how aggressive we are, we could probably deal more damage with the HEAVY at close range
-			chosenAttack = AttackType.LIGHT;
-		}
-		if(chosenAttack == AttackType.NONE) {
-			if(CanUseSpecial() && SpecialCouldReach(distance))
-			{
-				chosenAttack = AttackType.SPECIAL;
-			}
-		}
-		*/
 	}
 	
 	public AttackType ChosenAttack() {
@@ -296,7 +288,7 @@ public class Enemy : MonoBehaviour, IPawn
 		return charges > 0; 
 	}
 	
-	public bool OpponentNearby() {
+	public virtual bool OpponentNearby() {
 		
 		Vector3 opponentPos=TriPlayer.player.currentSquare.transform.position;
 		if(opponentPos.x==currentSquare.transform.position.x) {
@@ -307,37 +299,10 @@ public class Enemy : MonoBehaviour, IPawn
 		}
 		
 		return false;
-		/*
-		RaycastHit[] tiles;
-		
-		tiles=Physics.SphereCastAll(currentSquare.transform.position,1f,-Vector3.up, 1.5f,1<<6);
-		
-		for(int i=tiles.Length-1;i>-1;i--) {
-			if(tiles[i].transform.GetComponent<GridSquare>().IsOccupied(this)) {
-				SetHeading(tiles[i].transform.position - currentSquare.transform.position);
-				return true;
-			}
-		}
-		return false;
-		*/
 	}
 	
 	public Vector2 GetPosition() {
 		return new Vector2(currentSquare.transform.position.x,currentSquare.transform.position.z);
-	}
-	
-	int DistToPlayer() {
-		int dx = (int)Mathf.Abs(TriPlayer.player.GetPosition().x - GetPosition().x);
-		int dz = (int)Mathf.Abs(TriPlayer.player.GetPosition().y - GetPosition().y);
-	//	Debug.Log((TriPlayer.player.GetPosition()-GetPosition()).ToString("F1"));
-		//exclude diagonals
-		if(dx == 0) {
-			return dz;
-		}
-		if(dz == 0) {
-			return dx;
-		}
-		return 0; //can't hit
 	}
 	
 	public int HitPoints() {
@@ -360,7 +325,7 @@ public class Enemy : MonoBehaviour, IPawn
 		}
 	}
 	
-	public int DealtDamage() {
+	public virtual int DealtDamage() {
 		return baseDamage[chosenAttack];
 	}
 	
@@ -430,6 +395,7 @@ public class Enemy : MonoBehaviour, IPawn
 			if(!inMotion) {
 				agent.updateRotation =false;
 				OccupySquare();
+				clocked = true; //Prevents fully advancing on the next turn
 				EndTurn();
 			}
 		}

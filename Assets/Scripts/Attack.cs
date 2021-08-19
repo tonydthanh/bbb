@@ -233,4 +233,6 @@ public class Attack : MonoBehaviour
 }
 /* Pre-"after action report": 
  * I suspect the IPawns should inform the central class of their positions (FLJ, 8/17/21)
+ * 
+ * "It's hard to make a sheep look dangerous"-Tony Dong
  */
